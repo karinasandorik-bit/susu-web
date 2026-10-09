@@ -58,12 +58,12 @@ export async function listNotifications(
       ...(signal ? { signal } : {}),
       schema: notificationSchema,
     },
+    undefined,
+    z.object({ unreadCount: z.number().int().nonnegative() }).passthrough(),
   );
 
-  // A missing or malformed count is reported as zero rather than as `NaN`: a badge
-  // is decoration, and a badge reading "NaN" would be worse than none. The rows
-  // themselves were already validated by the page reader.
-  const unreadCount = typeof body.unreadCount === 'number' ? body.unreadCount : 0;
+  // The extra-fields schema above has validated unreadCount at runtime.
+  const unreadCount = body.unreadCount as number;
 
   return { ...page, unreadCount };
 }

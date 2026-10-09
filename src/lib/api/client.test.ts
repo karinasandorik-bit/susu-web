@@ -309,6 +309,27 @@ describe('runtime schema validation', () => {
     await expect(apiRequestPage('test', { schema: itemSchema })).rejects.toBeInstanceOf(ApiError);
   });
 
+  it('rejects missing or malformed unreadCount when an extra schema is supplied', async () => {
+    const extraSchema = z.object({ unreadCount: z.number().int().nonnegative() }).passthrough();
+    for (const extra of [{}, { unreadCount: '3' }, { unreadCount: -1 }]) {
+      fetchMock.mockResolvedValueOnce(jsonResponse(200, {
+        data: [], page: { limit: 10, offset: 0, hasMore: false }, ...extra,
+      }));
+      await expect(apiRequestPageBody('notifications', {}, undefined, extraSchema))
+        .rejects.toBeInstanceOf(ApiError);
+    }
+  });
+
+  it('preserves a valid unreadCount and page with extra schema', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {
+      data: [{ id: 'a' }], page: { limit: 10, offset: 0, hasMore: false }, unreadCount: 4,
+    }));
+    const extraSchema = z.object({ unreadCount: z.number().int().nonnegative() }).passthrough();
+    const result = await apiRequestPageBody('notifications', {}, undefined, extraSchema);
+    expect(result.body.unreadCount).toBe(4);
+    expect(result.page.items).toEqual([{ id: 'a' }]);
+  });
+
   it('validates page items in apiRequestPageBody with schema', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, {

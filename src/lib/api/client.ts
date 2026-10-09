@@ -272,6 +272,7 @@ export async function apiRequestPageBody<T>(
   path: string,
   options: RequestOptions<T> = {},
   itemSchema?: z.ZodType<T>,
+  extraSchema?: z.ZodType<Record<string, unknown>>,
 ): Promise<{ page: ApiPage<T>; body: Record<string, unknown> }> {
   const { status, body } = await send(path, options);
 
@@ -296,6 +297,17 @@ export async function apiRequestPageBody<T>(
       validatedItems.push(result.data);
     }
     items = validatedItems;
+  }
+
+  if (extraSchema) {
+    const result = extraSchema.safeParse(body);
+    if (!result.success) {
+      throw new ApiError(
+        status,
+        undefined,
+        `The server returned unexpected extra fields: ${result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ')}`,
+      );
+    }
   }
 
   return { page: { ...page, items }, body: body as Record<string, unknown> };
